@@ -12,9 +12,19 @@ func init() {
 }
 
 func main() {
-	log.Init()
+	fixByFile := []string{"asm_amd64.s", "proc.go", "icegatherer.go", "jsonrpc2"}
+	fixByFunc := []string{"Handle"}
+	log.Init("error", fixByFile, fixByFunc)
+
 	log.Infof("Hello %s", "friend")
 
 	err := errors.New("This is an error message")
-	log.Errorf("debug server stopped. got err: %s", err)
+	log.Errorf("%s", err)
+
+	l()
+}
+
+func l() {
+	err := errors.New("This is an error message")
+	log.Errorf("%s", err)
 }

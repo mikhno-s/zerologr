@@ -20,26 +20,16 @@ package zerologr
 
 import (
 	"errors"
-	"fmt"
 	"os"
-	"sync"
 
 	"github.com/go-logr/logr"
 	"github.com/rs/zerolog"
 )
 
-var (
-	log logr.Logger
-	mu  sync.RWMutex
+const (
+	debugVerbosity = 2
+	traceVerbosity = 8
 )
-
-const debugVerbosity = 2
-const traceVerbosity = 8
-
-// Init creates new instances for logr.Logger
-func Init(v ...interface{}) {
-	log = New()
-}
 
 // New returns a logr.Logger which is implemented by zerolog.
 func New() logr.Logger {
@@ -49,12 +39,12 @@ func New() logr.Logger {
 // NewWithOptions returns a logr.Logger which is implemented by zerolog.
 func NewWithOptions(opts Options) logr.Logger {
 	if opts.Logger == nil {
-		l := zerolog.New(os.Stderr).With().Timestamp().Logger()
+		l := zerolog.New(os.Stdout).With().Timestamp().Logger()
 		opts.Logger = &l
 	}
 	return logger{
 		l:         opts.Logger,
-		verbosity: 0,
+		verbosity: int(opts.Logger.GetLevel()),
 		prefix:    opts.Name,
 		values:    nil,
 	}
@@ -127,7 +117,6 @@ func (l logger) Info(msg string, keysAndVals ...interface{}) {
 		} else {
 			e = l.l.Trace()
 		}
-		e.Int("verbosity", l.verbosity)
 		if l.prefix != "" {
 			e.Str("name", l.prefix)
 		}
@@ -187,27 +176,3 @@ func (l logger) WithValues(kvList ...interface{}) logr.Logger {
 
 var _ logr.Logger = logger{}
 var _ logr.InfoLogger = logger{}
-
-// Added these functions to save backward compability with pion/ion-log
-
-// Infof logs a formatted info level log to the console
-func Infof(format string, v ...interface{}) {
-	mu.RLock()
-	defer mu.RUnlock()
-	log.Info(fmt.Sprintf(format, v...))
-
-}
-
-// Errorf logs a formatted error level log to the console
-func Errorf(format string, v ...interface{}) {
-	mu.RLock()
-	defer mu.RUnlock()
-	log.Error(nil, fmt.Sprintf(format, v...))
-}
-
-// Panicf (Panic) is not support by logr interface, leave just an error
-func Panicf(format string, v ...interface{}) {
-	mu.RLock()
-	defer mu.RUnlock()
-	log.Error(nil, fmt.Sprintf(format, v...))
-}
