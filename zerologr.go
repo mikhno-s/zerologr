@@ -37,7 +37,7 @@ const debugVerbosity = 2
 const traceVerbosity = 8
 
 // Init creates new instances for logr.Logger
-func Init() {
+func Init(v ...interface{}) {
 	log = New()
 }
 
