@@ -105,5 +105,4 @@ func Errorf(format string, v ...interface{}) {
 func Panicf(format string, v ...interface{}) {
 	mu.RLock()
 	defer mu.RUnlock()
-	log.Error(nil, fmt.Sprintf(format, v...))
 }
