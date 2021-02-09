@@ -19,7 +19,7 @@
 package zerologr
 
 import (
-	"errors"
+	"fmt"
 	"os"
 
 	"github.com/go-logr/logr"
@@ -29,15 +29,39 @@ import (
 const (
 	debugVerbosity = 2
 	traceVerbosity = 8
+	timeFormat     = "2006-01-02 15:04:05.000"
 )
 
+type Zerologr interface {
+	logr.Logger
+	Infof(string, ...interface{})
+	Errorf(string, ...interface{})
+	Panicf(string, ...interface{})
+}
+
+// Init creates new instances for logr.Logger and initializate the pion/ion-log log format and returns it
+func Init(level string) Zerologr {
+
+	zerolog.TimeFieldFormat = timeFormat
+
+	logLevel := getZerologLevel(level)
+	output := getOutputFormat(level)
+	l := zerolog.New(output).Level(logLevel).With().Timestamp().Logger()
+
+	o := Options{
+		Name:   "",
+		Logger: &l,
+	}
+	return NewWithOptions(o)
+}
+
 // New returns a logr.Logger which is implemented by zerolog.
-func New() logr.Logger {
+func New() Zerologr {
 	return NewWithOptions(Options{})
 }
 
 // NewWithOptions returns a logr.Logger which is implemented by zerolog.
-func NewWithOptions(opts Options) logr.Logger {
+func NewWithOptions(opts Options) Zerologr {
 	if opts.Logger == nil {
 		l := zerolog.New(os.Stdout).With().Timestamp().Logger()
 		opts.Logger = &l
@@ -64,47 +88,6 @@ type logger struct {
 	verbosity int
 	prefix    string
 	values    []interface{}
-}
-
-func (l logger) clone() logger {
-	out := l
-	out.values = copySlice(l.values)
-	return out
-}
-
-func copySlice(in []interface{}) []interface{} {
-	out := make([]interface{}, len(in))
-	copy(out, in)
-	return out
-}
-
-// add converts a bunch of arbitrary key-value pairs into zerolog fields.
-func add(e *zerolog.Event, keysAndVals []interface{}) {
-
-	// make sure we got an even number of arguments
-	if len(keysAndVals)%2 != 0 {
-		e.Interface("args", keysAndVals).
-			AnErr("zerologr-err", errors.New("odd number of arguments passed as key-value pairs for logging")).
-			Stack()
-		return
-	}
-
-	for i := 0; i < len(keysAndVals); {
-		// process a key-value pair,
-		// ensuring that the key is a string
-		key, val := keysAndVals[i], keysAndVals[i+1]
-		keyStr, isString := key.(string)
-		if !isString {
-			// if the key isn't a string, log additional error
-			e.Interface("invalid key", key).
-				AnErr("zerologr-err", errors.New("non-string key argument passed to logging, ignoring all later arguments")).
-				Stack()
-			return
-		}
-		e.Interface(keyStr, val)
-
-		i += 2
-	}
 }
 
 func (l logger) Info(msg string, keysAndVals ...interface{}) {
@@ -174,5 +157,19 @@ func (l logger) WithValues(kvList ...interface{}) logr.Logger {
 	return new
 }
 
-var _ logr.Logger = logger{}
-var _ logr.InfoLogger = logger{}
+// Infof logs a formatted info level log to the console
+func (l logger) Infof(format string, v ...interface{}) {
+	l.Info(fmt.Sprintf(format, v...))
+
+}
+
+// Errorf logs a formatted error level log to the console
+func (l logger) Errorf(format string, v ...interface{}) {
+	l.Error(nil, fmt.Sprintf(format, v...))
+}
+
+// Panicf (Panic) is not support by logr interface, leave just an error
+func (l logger) Panicf(format string, v ...interface{}) {
+	msg := l.l.Panic()
+	msg.Msgf(format, v)
+}
