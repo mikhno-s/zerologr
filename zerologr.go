@@ -21,6 +21,7 @@ package zerologr
 import (
 	"fmt"
 	"os"
+	"sync"
 
 	"github.com/go-logr/logr"
 	"github.com/rs/zerolog"
@@ -32,6 +33,11 @@ const (
 	timeFormat     = "2006-01-02 15:04:05.000"
 )
 
+var (
+	log logr.Logger
+	mu  sync.RWMutex
+)
+
 type Zerologr interface {
 	logr.Logger
 	Infof(string, ...interface{})
@@ -39,8 +45,8 @@ type Zerologr interface {
 	Panicf(string, ...interface{})
 }
 
-// Init creates new instances for logr.Logger and initializate the pion/ion-log log format and returns it
-func Init(level string) Zerologr {
+// Start creates and starts logger that has the same output to pion/ion-log
+func Start(level string, fixByFile, fixByFunc []string) {
 
 	zerolog.TimeFieldFormat = timeFormat
 
@@ -52,7 +58,9 @@ func Init(level string) Zerologr {
 		Name:   "",
 		Logger: &l,
 	}
-	return NewWithOptions(o)
+	mu.Lock()
+	log = NewWithOptions(o)
+	mu.Unlock()
 }
 
 // New returns a logr.Logger which is implemented by zerolog.
@@ -91,6 +99,8 @@ type logger struct {
 }
 
 func (l logger) Info(msg string, keysAndVals ...interface{}) {
+	mu.RLock()
+	defer mu.RUnlock()
 	if l.Enabled() {
 		var e *zerolog.Event
 		if l.verbosity < debugVerbosity {
@@ -125,6 +135,8 @@ func (l logger) Enabled() bool {
 }
 
 func (l logger) Error(err error, msg string, keysAndVals ...interface{}) {
+	mu.RLock()
+	defer mu.RUnlock()
 	e := l.l.Error().Err(err)
 	if l.prefix != "" {
 		e.Str("name", l.prefix)
@@ -170,6 +182,8 @@ func (l logger) Errorf(format string, v ...interface{}) {
 
 // Panicf (Panic) is not support by logr interface, leave just an error
 func (l logger) Panicf(format string, v ...interface{}) {
+	mu.RLock()
+	defer mu.RUnlock()
 	msg := l.l.Panic()
 	msg.Msgf(format, v)
 }

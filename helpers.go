@@ -28,7 +28,7 @@ func getZerologLevel(level string) zerolog.Level {
 	return zerologlvl
 }
 
-func getOutputFormat(level string) zerolog.ConsoleWriter {
+func getOutputFormat(level string, fixByFile, fixByFunc []string) zerolog.ConsoleWriter {
 	output := zerolog.ConsoleWriter{Out: os.Stdout, NoColor: false, TimeFormat: timeFormat}
 	output.FormatTimestamp = func(i interface{}) string {
 		return "[" + i.(string) + "]"
@@ -42,6 +42,23 @@ func getOutputFormat(level string) zerolog.ConsoleWriter {
 		funcName := strings.TrimPrefix(filepath.Ext((runtime.FuncForPC(caller).Name())), ".")
 		return fmt.Sprintf("[%d][%s][%s] => %s", line, fileName, funcName, i)
 	}
+	var needfix bool
+	for _, b := range fixByFile {
+		if strings.Contains(fileName, b) {
+			needfix = true
+		}
+	}
+	for _, b := range fixByFunc {
+		if strings.Contains(funcName, b) {
+			needfix = true
+		}
+	}
+	if needfix {
+		caller, file, line, _ = runtime.Caller(8)
+		fileName = filepath.Base(file)
+		funcName = strings.TrimPrefix(filepath.Ext((runtime.FuncForPC(caller).Name())), ".")
+	}
+	return fmt.Sprintf("[%d][%s][%s] => %s", line, fileName, funcName, i)
 	return output
 }
 
