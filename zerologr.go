@@ -34,7 +34,7 @@ const (
 )
 
 var (
-	log logr.Logger
+	log Zerologr
 	mu  sync.RWMutex
 )
 
@@ -45,13 +45,18 @@ type Zerologr interface {
 	Panicf(string, ...interface{})
 }
 
+// Config seems like isn't somewhere used, so just leave it here to don't let old code fail
+type Config struct {
+	Level string `mapstructure:"level"`
+}
+
 // Start creates and starts logger that has the same output to pion/ion-log
-func Start(level string, fixByFile, fixByFunc []string) {
+func Init(level string, fixByFile, fixByFunc []string) {
 
 	zerolog.TimeFieldFormat = timeFormat
 
 	logLevel := getZerologLevel(level)
-	output := getOutputFormat(level)
+	output := getOutputFormat(level, fixByFile, fixByFunc)
 	l := zerolog.New(output).Level(logLevel).With().Timestamp().Logger()
 
 	o := Options{
@@ -99,8 +104,6 @@ type logger struct {
 }
 
 func (l logger) Info(msg string, keysAndVals ...interface{}) {
-	mu.RLock()
-	defer mu.RUnlock()
 	if l.Enabled() {
 		var e *zerolog.Event
 		if l.verbosity < debugVerbosity {
@@ -135,8 +138,6 @@ func (l logger) Enabled() bool {
 }
 
 func (l logger) Error(err error, msg string, keysAndVals ...interface{}) {
-	mu.RLock()
-	defer mu.RUnlock()
 	e := l.l.Error().Err(err)
 	if l.prefix != "" {
 		e.Str("name", l.prefix)
@@ -172,7 +173,12 @@ func (l logger) WithValues(kvList ...interface{}) logr.Logger {
 // Infof logs a formatted info level log to the console
 func (l logger) Infof(format string, v ...interface{}) {
 	l.Info(fmt.Sprintf(format, v...))
+}
 
+func Infof(format string, v ...interface{}) {
+	mu.RLock()
+	defer mu.RUnlock()
+	log.Info(fmt.Sprintf(format, v...))
 }
 
 // Errorf logs a formatted error level log to the console
@@ -180,10 +186,34 @@ func (l logger) Errorf(format string, v ...interface{}) {
 	l.Error(nil, fmt.Sprintf(format, v...))
 }
 
-// Panicf (Panic) is not support by logr interface, leave just an error
-func (l logger) Panicf(format string, v ...interface{}) {
+func Errorf(format string, v ...interface{}) {
 	mu.RLock()
 	defer mu.RUnlock()
+	log.Error(nil, fmt.Sprintf(format, v...))
+}
+
+// Panicf (Panic) generates a panic event and stop all underlying goroutines
+func (l logger) Panicf(format string, v ...interface{}) {
 	msg := l.l.Panic()
 	msg.Msgf(format, v)
+}
+
+func Panicf(format string, v ...interface{}) {
+	mu.RLock()
+	defer mu.RUnlock()
+	log.Panicf(format, v)
+}
+
+// Debugf prints debug message with given format
+func Debugf(format string, v ...interface{}) {
+	mu.RLock()
+	defer mu.RUnlock()
+	log.Info(fmt.Sprintf(format, v...))
+}
+
+// Debugf prints warning message with given format
+func Warnf(format string, v ...interface{}) {
+	mu.RLock()
+	defer mu.RUnlock()
+	log.Info(fmt.Sprintf(format, v...))
 }

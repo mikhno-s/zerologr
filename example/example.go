@@ -10,11 +10,11 @@ func main() {
 	fixByFile := []string{"asm_amd64.s", "proc.go", "icegatherer.go", "jsonrpc2"}
 	fixByFunc := []string{"Handle"}
 
-	log.Start("trace", fixByFile, fixByFunc)
+	log.Init("trace", fixByFile, fixByFunc)
 
 	log.Infof("Hello %s", "friend")
 
 	log.Errorf("%s", errors.New("This is an error message"))
 
-	// log.Panicf("%s", err)
+	// log.Panicf("%s", errors.New("This is a panic"))
 }

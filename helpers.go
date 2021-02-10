@@ -40,25 +40,24 @@ func getOutputFormat(level string, fixByFile, fixByFunc []string) zerolog.Consol
 		caller, file, line, _ := runtime.Caller(9)
 		fileName := filepath.Base(file)
 		funcName := strings.TrimPrefix(filepath.Ext((runtime.FuncForPC(caller).Name())), ".")
+		var needfix bool
+		for _, b := range fixByFile {
+			if strings.Contains(fileName, b) {
+				needfix = true
+			}
+		}
+		for _, b := range fixByFunc {
+			if strings.Contains(funcName, b) {
+				needfix = true
+			}
+		}
+		if needfix {
+			caller, file, line, _ = runtime.Caller(8)
+			fileName = filepath.Base(file)
+			funcName = strings.TrimPrefix(filepath.Ext((runtime.FuncForPC(caller).Name())), ".")
+		}
 		return fmt.Sprintf("[%d][%s][%s] => %s", line, fileName, funcName, i)
 	}
-	var needfix bool
-	for _, b := range fixByFile {
-		if strings.Contains(fileName, b) {
-			needfix = true
-		}
-	}
-	for _, b := range fixByFunc {
-		if strings.Contains(funcName, b) {
-			needfix = true
-		}
-	}
-	if needfix {
-		caller, file, line, _ = runtime.Caller(8)
-		fileName = filepath.Base(file)
-		funcName = strings.TrimPrefix(filepath.Ext((runtime.FuncForPC(caller).Name())), ".")
-	}
-	return fmt.Sprintf("[%d][%s][%s] => %s", line, fileName, funcName, i)
 	return output
 }
 
